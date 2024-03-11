@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  socketio:
+    platform: linux/amd64
+    build:
+      context: ./services/socketio
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./services/socketio:/usr/src/app
+    command: ["npm", "start"]
+
+  redis:
+    image: redis:latest
+    platform: linux/amd64
+    ports:
+      - "6379:6379"
+    hostname: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  task-worker:
+    platform: linux/amd64
+    build:
+      context: ./services/task-worker
+      dockerfile: Dockerfile
+    depends_on:
+      - socketio
+      - redis
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./services/task-worker:/usr/src/app

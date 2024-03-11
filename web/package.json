@@ -1,0 +1,11 @@
+{
+    "name": "test-web-app",
+    "version": "1.0.0",
+    "description": "Your web application",
+    "scripts": {
+      "start": "http-server -p 8080 src"
+    },
+    "dependencies": {
+      "http-server": "^0.12.3"
+    }
+  }

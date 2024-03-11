@@ -1,0 +1,24 @@
+{
+  "name": "socketio-service",
+  "version": "1.0.0",
+  "description": "Socket.IO service for my multi-container Docker application",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "node dist/app.js",
+    "build": "tsc",
+    "dev": "ts-node src/app.ts",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "socket.io": "^4.2.0",
+    "@socket.io/redis-adapter": "^8.2.1",
+    "redis": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.0.0",
+    "ts-node": "^10.0.0"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}
+
