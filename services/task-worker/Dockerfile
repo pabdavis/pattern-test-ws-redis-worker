@@ -7,5 +7,4 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-
-CMD ["celery", "-A", "src.tasks", "worker", "--loglevel=DEBUG"]
+CMD ["python", "src/celery_worker.py"]

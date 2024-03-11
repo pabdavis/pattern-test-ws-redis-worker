@@ -10,15 +10,14 @@
     "watch": "tsc -w"
   },
   "dependencies": {
-    "socket.io": "^4.2.0",
     "@socket.io/redis-adapter": "^8.2.1",
-    "redis": "^4.0.0"
+    "redis": "^4.6.13",
+    "socket.io": "^4.2.0"
   },
   "devDependencies": {
-    "typescript": "^4.0.0",
-    "ts-node": "^10.0.0"
+    "ts-node": "^10.0.0",
+    "typescript": "^4.0.0"
   },
   "author": "Your Name",
   "license": "MIT"
 }
-

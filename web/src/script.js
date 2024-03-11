@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for incoming messages from the server
     socket.on('chat message', (message) => {
+        console.log('Received message:', message);
         // Add the received message to the list of messages
         const li = document.createElement('li');
         li.textContent = message;

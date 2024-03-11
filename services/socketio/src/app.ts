@@ -1,45 +1,81 @@
-// app.js
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
 
-const httpServer = createServer();
-const io = new Server(httpServer,
-    {
+async function startServer() {
+    const httpServer = createServer();
+    const io = new Server(httpServer, {
         cors: {
             origin: "http://localhost:8080"
         }
     });
-const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 3000;
 
-io.on('connection', (socket) => {
-    console.log('A user connected');
+    const redisClient = createClient({ url: "redis://redis:6379" });
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
+    redisClient.on("error", (error) => {
+        console.error("Redis error:", error);
     });
 
-    // Example event
-    socket.on('chat message', (msg) => {
-        console.log('message: ' + msg);
-        io.emit('chat message', msg); // Broadcasting message to all connected clients
+    // Wait for the Redis client to connect
+    await redisClient.connect();
+    console.log("Connected to Redis");
+
+    io.on('connection', (socket) => {
+        console.log('A user connected');
+
+        socket.on('chat message', (msg) => {
+            console.log(`sid: ${socket.id} sent message: ${msg}`);
+
+            let internalMessage = {
+                message: msg,
+                sid: socket.id
+            }
+            redisClient.publish('chat_messages', JSON.stringify(internalMessage));
+            io.to(socket.id).emit('chat message', 'got your message');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('User disconnected');
+        });
+
+        // Listen for a specific message targeted to this client
+        socket.on('targeted message', (msg) => {
+            // Process the message
+            console.log('Received targeted message:', msg);
+        });
     });
-});
 
-// Create Redis clients
-const pubClient = createClient({ url: "redis://redis:6379" });
-const subClient = pubClient.duplicate();
-
-// Connect to Redis clients and set up adapter
-Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+    const pubClient = redisClient.duplicate();
+    const subClient = redisClient.duplicate();
     const adapter = createAdapter(pubClient, subClient);
+    io.adapter(adapter);
 
-    // Set up pub/sub event listener for logging
+    // Subscribe to a Redis channel for task worker messages
+    const taskWorkerChannel = 'task_worker_messages';
+    subClient.subscribe(taskWorkerChannel, () => { });
+
+    // Handle incoming messages from the task worker
     subClient.on('message', (channel, message) => {
-        console.log(`Received message in channel ${channel}: ${message}`);
+        // Parse the message (assuming it's JSON)
+        const parsedMessage = JSON.parse(message);
+
+        // Extract the client ID from the message (assuming it's included)
+        const clientId = parsedMessage.clientId;
+
+        // Emit the message to the targeted client
+        io.to(clientId).emit('targeted message', parsedMessage);
     });
 
-    // Set up pub/sub event listener for Socket.IO adapter events
-    httpServer.listen(Number(PORT));
+    Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+        httpServer.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    });
+}
+
+// Call the startServer function to start the server
+startServer().catch(error => {
+    console.error('Failed to start server:', error);
 });
