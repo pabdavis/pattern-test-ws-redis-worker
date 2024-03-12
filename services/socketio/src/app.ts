@@ -22,36 +22,29 @@ async function startServer() {
     await taskPubClient.connect();
     console.log("Connected to Redis");
 
-
-    const taskSubClient = taskPubClient.duplicate();
-    await taskSubClient.connect();
-    // Subscribe to a Redis channel for task worker messages
-    // Handle incoming messages from the task worker
-    taskSubClient.on('message', (channel, message) => {
-        console.log(`Received message from channel ${channel}:`, message);
-        // Parse the message (assuming it's JSON)
-        const parsedMessage = JSON.parse(message);
-        console.log('Parsed message:', parsedMessage);
-
-        // Extract the client ID from the message (assuming it's included)
-        const clientId = parsedMessage.clientId;
-
-        // Emit the message to the targeted client
-        io.to(clientId).emit('chat message', parsedMessage.message);
-    });
-
-    taskSubClient.on('error', (error) => {
-        console.error('Subscription error:', error);
-    });
-    const taskWorkerChannel = 'task_worker_messages';
-    taskSubClient.subscribe(taskWorkerChannel, () => {
-        console.log(`Subscribed to channel ${taskWorkerChannel}`);
-    });
-
     const sioPubClient = taskPubClient.duplicate();
     const sioSubClient = taskPubClient.duplicate();
     const adapter = createAdapter(sioPubClient, sioSubClient);
     io.adapter(adapter);
+
+    // io.use((socket, next) => {
+    //     const sessionID = socket.handshake.auth.sessionID;
+    //     if (sessionID) {
+    //         // find existing session
+    //         const session = sessionStore.findSession(sessionID);
+    //         if (session) {
+    //             socket.sessionID = sessionID;
+    //             socket.userID = session.userID;
+    //             return next();
+    //         }
+    //     }
+
+    //     // create new session
+    //     socket.sessionID = randomId();
+    //     socket.userID = randomId();
+    //     next();
+    // });
+
 
     io.on('connection', (socket) => {
         console.log('A user connected');
@@ -64,7 +57,7 @@ async function startServer() {
                 sid: socket.id
             }
             taskPubClient.publish('chat_messages', JSON.stringify(internalMessage));
-            io.to(socket.id).emit('chat message', 'got your message');
+            io.to(internalMessage.sid).emit('chat message', 'got your message');
         });
 
         socket.on('disconnect', () => {
@@ -76,6 +69,27 @@ async function startServer() {
             // Process the message
             console.log('Received targeted message:', msg);
         });
+    });
+
+    const taskSubClient = taskPubClient.duplicate();
+    await taskSubClient.connect();
+    // Subscribe to a Redis channel for task worker messages
+    taskSubClient.on('error', (error) => {
+        console.error('Subscription error:', error);
+    });
+    const taskWorkerChannel = 'task_worker_messages';
+    taskSubClient.subscribe(taskWorkerChannel, async (message) => {
+        console.log(`Subscriber to channel ${taskWorkerChannel} received message: ${message}`)
+
+        // Parse the message (assuming it's JSON)
+        const parsedMessage = JSON.parse(message);
+        console.log('Parsed message:', parsedMessage);
+
+        // Extract the client ID from the message (assuming it's included)
+        const clientId = parsedMessage.sid;
+        console.log('Client ID:', clientId);
+
+        io.to(clientId).emit('chat message', parsedMessage.message);
     });
 
     Promise.all([sioPubClient.connect(), sioSubClient.connect()]).then(() => {
