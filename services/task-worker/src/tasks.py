@@ -2,6 +2,7 @@ from celery import Celery
 from redis import Redis
 import json
 import logging as logger
+import socketio
 
 # Define the Celery application
 app = Celery('tasks', broker='redis://redis:6379/0')

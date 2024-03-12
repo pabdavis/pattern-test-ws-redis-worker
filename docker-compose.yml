@@ -25,9 +25,9 @@ services:
     hostname: redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 3s
       timeout: 5s
-      retries: 3
+      retries: 2
 
   task-worker:
     platform: linux/amd64

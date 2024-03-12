@@ -31,4 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
         li.textContent = message;
         messages.appendChild(li);
     });
+
+    socket.onAny((event, ...args) => {
+        console.log(event, args);
+    });
 });
