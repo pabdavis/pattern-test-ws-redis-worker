@@ -13,25 +13,19 @@ redis_port = os.getenv('REDIS_PORT', 6379)
 redis_db = os.getenv('REDIS_DB', 0)
 # Define the Celery application
 redis_url = f'redis://{redis_host}:{redis_port}/{redis_db}'
-# app = Celery(
-#     'tasks',
-#     backend=redis_url,
-#     broker=redis_url
-# )
+app = Celery(
+    'tasks',
+    backend=redis_url,
+    broker=redis_url
+)
 
-# app.autodiscover_tasks(['tasks'])
-
-# # Define a Celery task
-# @app.task
-# def process_message(message):
-#     logger.info('Processing message: %s', message)
-
-#     # Process the message (example: increment the message)
-#     incremented_message = message + 1
-
-#     # Publish the incremented message back to a Redis channel
-#     redis_client = Redis(host=redis_host, port=redis_port, db=redis_db)
-#     redis_client.publish('task_worker_messages', incremented_message)
+# Define a Celery task
+@app.task
+def process_message(message):
+    logger.info('Processing message: %s', message)
+    message = json.loads(message)
+    # Process the message (example: increment the message)
+    get_answer(message)
 
 
 def get_answer(message):
@@ -70,24 +64,29 @@ def get_answer(message):
     # redis_client = Redis(host=redis_host, port=redis_port, db=redis_db)
     # redis_client.publish('incremented_messages', incremented_message)
 
-def start_worker():
-    logger.info('Starting the Celery worker')
-    # Connect to Redis
-    redis_client = Redis(host=redis_host, port=redis_port, db=redis_db)
-    logger.info(f'Connected to Redis ({redis_host}:{redis_port}/{redis_db})')
+# def start_worker():
+#     logger.info('Starting the Celery worker')
+#     # Connect to Redis
+#     redis_client = Redis(host=redis_host, port=redis_port, db=redis_db)
+#     logger.info(f'Connected to Redis ({redis_host}:{redis_port}/{redis_db})')
 
-    # Subscribe to the 'chat_messages' channel
-    pubsub = redis_client.pubsub()
-    pubsub.subscribe('chat_messages')
+#     # Subscribe to the 'chat_messages' channel
+#     pubsub = redis_client.pubsub()
+#     pubsub.subscribe('chat_messages')
 
-    # Listen for messages and process them using the Celery task
-    for message in pubsub.listen():
-        logger.info('Received message: %s', message)
-        if message['type'] == 'message':
-            message_data = json.loads(message['data'])
-            get_answer(message_data)
-#            process_message.delay(message_data)  # Dispatch Celery task
+#     # Listen for messages and process them using the Celery task
+#     for message in pubsub.listen():
+#         logger.info('Received message: %s', message)
+#         if message['type'] == 'message':
+#             message_data = json.loads(message['data'])
+#             get_answer(message_data)
+#             process_message.delay(message_data)  # Dispatch Celery task
 
 
 if __name__ == "__main__":
-    start_worker()
+    argv = [
+        'worker',
+        '--loglevel=DEBUG',
+        '--concurrency=4'
+    ]
+    app.worker_main(argv)

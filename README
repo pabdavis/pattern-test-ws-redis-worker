@@ -1,0 +1,16 @@
+# Start the servers
+docker-compose build
+docker-compose up
+
+# virtual env setup
+python3 -m venv .venv
+source ./.venv/bin/activate
+
+pip3 install -r requirements.txt
+
+# Communicate through socket.io
+python3
+import socketio
+sio = socketio.SimpleClient()
+sio.connect('http://localhost:3000')
+sio.emit('chat message', {"test": "TEST"})

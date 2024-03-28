@@ -2,6 +2,12 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
+const celery = require('celery-node');
+
+const client = celery.createClient(
+    "redis://redis:6379/0",
+    "redis://redis:6379/0"
+);
 
 async function startServer() {
     const httpServer = createServer();
@@ -45,7 +51,6 @@ async function startServer() {
     //     next();
     // });
 
-
     io.on('connection', (socket) => {
         console.log('A user connected');
 
@@ -56,7 +61,9 @@ async function startServer() {
                 message: msg,
                 sid: socket.id
             }
-            taskPubClient.publish('chat_messages', JSON.stringify(internalMessage));
+
+            client.sendTask("tasks.process_message", [JSON.stringify(internalMessage)], {});
+            // taskPubClient.publish('chat_messages', JSON.stringify(internalMessage));
             io.to(internalMessage.sid).emit('chat message', 'got your message');
         });
 
@@ -77,6 +84,7 @@ async function startServer() {
     taskSubClient.on('error', (error) => {
         console.error('Subscription error:', error);
     });
+
     const taskWorkerChannel = 'task_worker_messages';
     taskSubClient.subscribe(taskWorkerChannel, async (message) => {
         console.log(`Subscriber to channel ${taskWorkerChannel} received message: ${message}`)
