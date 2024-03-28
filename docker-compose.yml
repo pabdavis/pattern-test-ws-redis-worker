@@ -9,8 +9,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      redis:
-        condition: service_healthy
+      - task-worker
+      - redis
     environment:
       - REDIS_HOST=redis
     volumes:
@@ -35,7 +35,6 @@ services:
       context: ./services/task-worker
       dockerfile: Dockerfile
     depends_on:
-      - socketio
       - redis
     environment:
       - REDIS_HOST=redis

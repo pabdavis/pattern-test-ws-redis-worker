@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.1",
+    "celery-node": "^0.5.9",
     "redis": "^4.6.13",
     "socket.io": "^4.7.4"
   },
