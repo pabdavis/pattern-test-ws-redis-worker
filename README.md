@@ -27,11 +27,11 @@ sio.emit('chat message', {"test": "TEST"})
 ```mermaid
 sequenceDiagram
     Web ->> Socket.io: Emit
-    Socket.io ->> CeleryClient: SendTask (process_message)
-    CeleryClient ->> CeleryRedisBroker: Publish
+    Socket.io ->> CeleryClient:
+    CeleryClient ->> CeleryRedisBroker: Send Task (process_message)
     CeleryRedisBroker ->> CeleryWorker: Run Task (process_message)
     CeleryWorker ->> RedisChannel: Publish increment message (task_worker_messages)
-    RedisChannel ->> TaskSubcriber: Receive message
+    RedisChannel ->> TaskSubcriber: Receive message (task_worker_messages)
     TaskSubcriber ->> Socket.io: Emit message
     Socket.io ->> Web: Receive message
 ```
