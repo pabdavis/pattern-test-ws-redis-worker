@@ -4,32 +4,40 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
 const celery = require('celery-node');
 
+const cors_origin = 'http://localhost:8080';
+const redis_host = 'redis';
+const redis_port = 6379;
+const redis_db = 0;
+
+const redis_url = `redis://${redis_host}:${redis_port}`;
+const redis_db_url = `redis://${redis_host}:${redis_port}/${redis_db}`;
+
 const client = celery.createClient(
-    "redis://redis:6379/0",
-    "redis://redis:6379/0"
+    redis_db_url,
+    redis_db_url
 );
 
 async function startServer() {
     const httpServer = createServer();
     const io = new Server(httpServer, {
         cors: {
-            origin: "http://localhost:8080"
+            origin: cors_origin
         }
     });
     const PORT = process.env.PORT || 3000;
 
-    const taskPubClient = createClient({ url: "redis://redis:6379", legacyMode: false });
+    const taskSubClient = createClient({ url: redis_url, legacyMode: false });
 
-    taskPubClient.on("error", (error) => {
+    taskSubClient.on("error", (error) => {
         console.error("Redis error:", error);
     });
 
     // Wait for the Redis client to connect
-    await taskPubClient.connect();
-    console.log("Connected to Redis");
+    await taskSubClient.connect();
+    console.log("Task subscription client connected to Redis");
 
-    const sioPubClient = taskPubClient.duplicate();
-    const sioSubClient = taskPubClient.duplicate();
+    const sioPubClient = taskSubClient.duplicate();
+    const sioSubClient = taskSubClient.duplicate();
     const adapter = createAdapter(sioPubClient, sioSubClient);
     io.adapter(adapter);
 
@@ -63,8 +71,12 @@ async function startServer() {
             }
 
             client.sendTask("tasks.process_message", [JSON.stringify(internalMessage)], {});
-            // taskPubClient.publish('chat_messages', JSON.stringify(internalMessage));
-            io.to(internalMessage.sid).emit('chat message', 'got your message');
+
+            let statusMessage = {
+                type: 'status',
+                text: 'got your message'
+            }
+            io.to(internalMessage.sid).emit('chat message', statusMessage);
         });
 
         socket.on('disconnect', () => {
@@ -78,12 +90,6 @@ async function startServer() {
         });
     });
 
-    const taskSubClient = taskPubClient.duplicate();
-    await taskSubClient.connect();
-    // Subscribe to a Redis channel for task worker messages
-    taskSubClient.on('error', (error) => {
-        console.error('Subscription error:', error);
-    });
 
     const taskWorkerChannel = 'task_worker_messages';
     taskSubClient.subscribe(taskWorkerChannel, async (message) => {
@@ -97,7 +103,7 @@ async function startServer() {
         const clientId = parsedMessage.sid;
         console.log('Client ID:', clientId);
 
-        io.to(clientId).emit('chat message', parsedMessage.message);
+        io.to(clientId).emit('chat message', parsedMessage);
     });
 
     Promise.all([sioPubClient.connect(), sioSubClient.connect()]).then(() => {
