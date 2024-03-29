@@ -63,8 +63,12 @@ async function startServer() {
             }
 
             client.sendTask("tasks.process_message", [JSON.stringify(internalMessage)], {});
-            // taskPubClient.publish('chat_messages', JSON.stringify(internalMessage));
-            io.to(internalMessage.sid).emit('chat message', 'got your message');
+
+            let statusMessage = {
+                type: 'status',
+                text: 'got your message'
+            }
+            io.to(internalMessage.sid).emit('chat message', statusMessage);
         });
 
         socket.on('disconnect', () => {
@@ -97,7 +101,7 @@ async function startServer() {
         const clientId = parsedMessage.sid;
         console.log('Client ID:', clientId);
 
-        io.to(clientId).emit('chat message', parsedMessage.message);
+        io.to(clientId).emit('chat message', parsedMessage);
     });
 
     Promise.all([sioPubClient.connect(), sioSubClient.connect()]).then(() => {

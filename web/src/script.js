@@ -23,13 +23,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+
     // Listen for incoming messages from the server
-    socket.on('chat message', (message) => {
-        console.log('Received message:', message);
-        // Add the received message to the list of messages
-        const li = document.createElement('li');
-        li.textContent = message;
-        messages.appendChild(li);
+    socket.on('chat message', (msg) => {
+        console.log('Received message:', msg);
+
+        if (msg.type === 'status') {
+            // Find and update existing status message, or create a new one
+            let existingStatusLi = document.querySelector('li[data-type="status"]');
+            if (!existingStatusLi) {
+                existingStatusLi = document.createElement('li');
+                existingStatusLi.setAttribute('data-type', 'status');
+                messages.appendChild(existingStatusLi);
+            }
+            existingStatusLi.textContent = msg.text;
+        } else if (msg.type === 'response') {
+            // Remove existing status message, if any
+            let existingStatusLi = document.querySelector('li[data-type="status"]');
+            if (existingStatusLi) {
+                existingStatusLi.remove();
+            }
+
+            // Append the received response message to the list of messages
+            const li = document.createElement('li');
+            li.textContent = msg.text;
+            messages.appendChild(li);
+        }
     });
 
     socket.onAny((event, ...args) => {
