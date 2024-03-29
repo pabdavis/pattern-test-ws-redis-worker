@@ -26,12 +26,28 @@ sio.emit('chat message', {"test": "TEST"})
 
 ```mermaid
 sequenceDiagram
-    Web ->> Socket.io: Emit
-    Socket.io ->> CeleryClient:
-    CeleryClient ->> CeleryRedisBroker: Send Task (process_message)
-    CeleryRedisBroker ->> CeleryWorker: Run Task (process_message)
-    CeleryWorker ->> RedisChannel: Publish increment message (task_worker_messages)
-    RedisChannel ->> TaskSubcriber: Receive message (task_worker_messages)
-    TaskSubcriber ->> Socket.io: Emit message
-    Socket.io ->> Web: Receive message
+    User ->> SIOClient: Enters message
+    SIOClient ->> SIOServer: Emit message
+    SIOServer ->> CeleryClient: Receive message, create task message
+    CeleryClient ->> CeleryRedisBroker: Send task message (process_message)
+    CeleryRedisBroker ->> CeleryWorker: Receive task message and run process_message
+    loop Until Response message
+        CeleryWorker ->> RedisChannel: Publish status message (task_worker_messages)
+        RedisChannel ->> TaskSubscriber: Receive status message (task_worker_messages)
+        TaskSubscriber ->> SIOServer: Emit status message
+        SIOServer ->> SIOClient: Receive status message
+        SIOClient ->> User: View status message
+        CeleryWorker ->> RedisChannel: Publish response message (task_worker_messages)
+        RedisChannel ->> TaskSubscriber: Receive response message (task_worker_messages)
+        TaskSubscriber ->> SIOServer: Emit response message
+        SIOServer ->> SIOClient: Receive response message
+        SIOClient ->> User: View response message
+    end
+
 ```
+
+The above diagram does not include internal Redis interaction between SIOServer and Celery components.
+
+* SIOClient  - SocketIO Client
+* SIOServer - SocketIO Server
+* TaskSubscriber - listener within the SocketIO Server
