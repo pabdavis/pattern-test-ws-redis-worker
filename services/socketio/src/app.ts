@@ -4,7 +4,7 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
 const celery = require('celery-node');
 
-const cors_origin = 'http://localhost:8080';
+const cors_origin = 'http://localhost:3000';
 const redis_host = 'redis';
 const redis_port = 6379;
 const redis_db = 0;
@@ -63,14 +63,16 @@ async function startServer() {
         console.log('A user connected');
 
         socket.on('chat message', (msg) => {
-            console.log(`sid: ${socket.id} sent message: ${msg}`);
+            console.log(`received message from sid: ${socket.id} message: ${msg}`);
 
             let internalMessage = {
                 message: msg,
                 sid: socket.id
             }
 
-            client.sendTask("tasks.process_message", [JSON.stringify(internalMessage)], {});
+            let task = 'tasks.process_message'
+            console.log(`Sending task ${task} with message:`, internalMessage);
+            client.sendTask(task, [JSON.stringify(internalMessage)], {});
 
             let statusMessage = {
                 type: 'status',
@@ -103,7 +105,13 @@ async function startServer() {
         const clientId = parsedMessage.sid;
         console.log('Client ID:', clientId);
 
-        io.to(clientId).emit('chat message', parsedMessage);
+        const connectedIds = await (
+            await io.in(clientId).local.fetchSockets()
+        ).map((s) => s.id);
+
+        if (connectedIds.includes(clientId)) {
+            io.to(clientId).emit('chat message', parsedMessage);
+        }
     });
 
     Promise.all([sioPubClient.connect(), sioSubClient.connect()]).then(() => {
